@@ -75,8 +75,8 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.16.2",
     "@clerk/react": "^6.4.2",
-    "@clerk/themes": "^2.4.57",
     "@workspace/api-zod": "workspace:*",
     "ably": "^2.21.0",
     "agora-rtc-react": "^2.5.1",

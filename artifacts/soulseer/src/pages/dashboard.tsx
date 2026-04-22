@@ -45,8 +45,8 @@ function DashboardContent() {
                 <Link href="/readers" className="text-primary hover:underline">Find a Reader</Link>
                 <Link href="/wallet" className="text-primary hover:underline">Wallet & Balance</Link>
                 <Link href="/sessions" className="text-primary hover:underline">My Sessions</Link>
-                <Link href="/favorites" className="text-primary hover:underline">Favorites</Link>
-                <Link href="/messages" className="text-primary hover:underline">Messages</Link>
+                <Link href="/community" className="text-primary hover:underline">Community Hub</Link>
+                <Link href="/forum" className="text-primary hover:underline">Forum</Link>
               </div>
             </CardContent>
           </Card>

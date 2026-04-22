@@ -1,9 +1,9 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
-import { dark } from '@clerk/themes';
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { useEffect, useRef } from "react";
 
 import { queryClient } from "./lib/queryClient";
@@ -11,20 +11,18 @@ import Home from "@/pages/home";
 import ReadersPage from "@/pages/readers";
 import ReaderDetailPage from "@/pages/reader-detail";
 import AboutPage from "@/pages/about";
+import HelpPage from "@/pages/help";
+import PrivacyPage from "@/pages/privacy";
 import DashboardPage from "@/pages/dashboard";
 import WalletPage from "@/pages/wallet";
 import SessionsPage from "@/pages/sessions";
 import SessionRoomPage from "@/pages/session-room";
-import FavoritesPage from "@/pages/favorites";
 import CommunityPage from "@/pages/community";
-import MessagesPage from "@/pages/messages";
-import MessageThreadPage from "@/pages/message-thread";
 import ForumPage from "@/pages/forum";
 import ForumTopicPage from "@/pages/forum-topic";
 import ForumNewPage from "@/pages/forum-new";
 import ReaderDashboardPage from "@/pages/reader-dashboard";
 import ReaderProfilePage from "@/pages/reader-profile";
-import ReaderAvailabilityPage from "@/pages/reader-availability";
 import ReaderSessionsPage from "@/pages/reader-sessions";
 
 import AdminDashboardPage from "@/pages/admin/index";
@@ -33,179 +31,202 @@ import AdminReadersPage from "@/pages/admin/readers";
 import AdminTransactionsPage from "@/pages/admin/transactions";
 import AdminFlagsPage from "@/pages/admin/flags";
 import AdminAnnouncementsPage from "@/pages/admin/announcements";
-import AdminMessagesPage from "@/pages/admin/messages";
 import NotFound from "@/pages/not-found";
+import { Loader2 } from "lucide-react";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN as string | undefined;
+const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID as string | undefined;
+const auth0Audience = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-function stripBase(path: string): string {
-  return basePath && path.startsWith(basePath)
-    ? path.slice(basePath.length) || "/"
-    : path;
-}
+function AuthBootstrap() {
+  const { getAccessTokenSilently, isAuthenticated } = useAuth0();
+  const qc = useQueryClient();
+  const lastAuthRef = useRef<boolean | null>(null);
 
-if (!clerkPubKey) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
-}
+  useEffect(() => {
+    setAuthTokenGetter(async () => {
+      if (!isAuthenticated) return null;
+      try {
+        return await getAccessTokenSilently({
+          authorizationParams: { audience: auth0Audience },
+        });
+      } catch {
+        return null;
+      }
+    });
+    return () => setAuthTokenGetter(null);
+  }, [getAccessTokenSilently, isAuthenticated]);
 
-const clerkAppearance = {
-  theme: dark,
-  cssLayerName: "clerk",
-  options: {
-    logoPlacement: "inside" as const,
-    logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-  },
-  variables: {
-    colorPrimary: "hsl(330 100% 71%)",
-    colorForeground: "hsl(0 0% 96%)",
-    colorMutedForeground: "hsl(0 0% 63%)",
-    colorDanger: "hsl(0 84% 60%)",
-    colorBackground: "hsl(0 0% 7%)",
-    colorInput: "hsl(0 0% 20%)",
-    colorInputForeground: "hsl(0 0% 96%)",
-    colorNeutral: "hsl(0 0% 15%)",
-    colorModalBackdrop: "rgba(0,0,0,0.8)",
-    fontFamily: "'Playfair Display', serif",
-    borderRadius: "0.5rem",
-  },
-};
+  useEffect(() => {
+    if (lastAuthRef.current !== null && lastAuthRef.current !== isAuthenticated) {
+      qc.clear();
+    }
+    lastAuthRef.current = isAuthenticated;
+  }, [isAuthenticated, qc]);
+
+  return null;
+}
 
 function SignInPage() {
+  const { loginWithRedirect } = useAuth0();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    loginWithRedirect({
+      authorizationParams: { audience: auth0Audience },
+    }).catch(() => setLocation("/"));
+  }, [loginWithRedirect, setLocation]);
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center px-4" style={{ backgroundImage: "url('https://i.postimg.cc/sXdsKGTK/BACKGROUND.jpg')", backgroundSize: 'cover', backgroundAttachment: 'fixed' }}>
-      <div className="absolute inset-0 bg-black/60 pointer-events-none" />
-      <div className="relative z-10">
-        <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-      </div>
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>
   );
 }
 
 function SignUpPage() {
+  const { loginWithRedirect } = useAuth0();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    loginWithRedirect({
+      authorizationParams: { audience: auth0Audience, screen_hint: "signup" },
+    }).catch(() => setLocation("/"));
+  }, [loginWithRedirect, setLocation]);
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center px-4" style={{ backgroundImage: "url('https://i.postimg.cc/sXdsKGTK/BACKGROUND.jpg')", backgroundSize: 'cover', backgroundAttachment: 'fixed' }}>
-      <div className="absolute inset-0 bg-black/60 pointer-events-none" />
-      <div className="relative z-10">
-        <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-      </div>
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>
   );
 }
 
-function HomeRedirect() {
+function HomeRoute() {
+  const { isAuthenticated, isLoading } = useAuth0();
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (isAuthenticated) return <Redirect to="/dashboard" />;
+  return <Home />;
+}
+
+function NotConfiguredBanner() {
   return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
-        <Home />
-      </Show>
-    </>
+    <div className="bg-primary/15 border-b border-primary/30 text-primary text-center text-sm font-sans py-2 px-4">
+      Sign-in is offline — set <code className="text-secondary">VITE_AUTH0_DOMAIN</code>,{" "}
+      <code className="text-secondary">VITE_AUTH0_CLIENT_ID</code>, and{" "}
+      <code className="text-secondary">VITE_AUTH0_AUDIENCE</code> to enable accounts.
+    </div>
   );
 }
 
-function ClerkQueryClientCacheInvalidator() {
-  const { addListener } = useClerk();
-  const queryClient = useQueryClient();
-  const prevUserIdRef = useRef<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    const unsubscribe = addListener(({ user }) => {
-      const userId = user?.id ?? null;
-      if (
-        prevUserIdRef.current !== undefined &&
-        prevUserIdRef.current !== userId
-      ) {
-        queryClient.clear();
-      }
-      prevUserIdRef.current = userId;
-    });
-    return unsubscribe;
-  }, [addListener, queryClient]);
-
-  return null;
+function NotConfiguredRedirect() {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+      <h1 className="font-display text-4xl text-primary mb-3">Account features are offline</h1>
+      <p className="font-serif text-muted-foreground max-w-md mb-6">
+        This part of the parlor needs sign-in, which requires Auth0 to be configured. You can still browse readers and
+        the community.
+      </p>
+    </div>
+  );
 }
 
-function ClerkProviderWithRoutes() {
+function PublicOnlyRoutes() {
   return (
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
-      appearance={clerkAppearance}
-      localization={{
-        signIn: {
-          start: {
-            title: "Welcome back to SoulSeer",
-            subtitle: "Enter the parlor to continue your journey",
-          },
-        },
-        signUp: {
-          start: {
-            title: "Join our Community",
-            subtitle: "Begin your spiritual journey today",
-          },
-        },
-      }}
-    >
-      <QueryClientProvider client={queryClient}>
-        <ClerkQueryClientCacheInvalidator />
-        <Switch>
-          <Route path="/" component={HomeRedirect} />
-          <Route path="/sign-in/*?" component={SignInPage} />
-          <Route path="/sign-up/*?" component={SignUpPage} />
-          
-          {/* Public */}
-          <Route path="/readers" component={ReadersPage} />
-          <Route path="/readers/:id" component={ReaderDetailPage} />
-          <Route path="/about" component={AboutPage} />
-          <Route path="/community" component={CommunityPage} />
-          <Route path="/forum" component={ForumPage} />
-          <Route path="/forum/new" component={ForumNewPage} />
-          <Route path="/forum/topics/:topicId" component={ForumTopicPage} />
-          
-          {/* Client */}
-          <Route path="/dashboard" component={DashboardPage} />
-          <Route path="/wallet" component={WalletPage} />
-          <Route path="/sessions" component={SessionsPage} />
-          <Route path="/sessions/:sessionId" component={SessionRoomPage} />
-          <Route path="/favorites" component={FavoritesPage} />
-          <Route path="/messages" component={MessagesPage} />
-          <Route path="/messages/:threadId" component={MessageThreadPage} />
-          
-          {/* Reader */}
-          <Route path="/reader" component={ReaderDashboardPage} />
-          <Route path="/reader/profile" component={ReaderProfilePage} />
-          <Route path="/reader/availability" component={ReaderAvailabilityPage} />
-          <Route path="/reader/sessions" component={ReaderSessionsPage} />
+    <Switch>
+      <Route path="/" component={Home} />
+      <Route path="/readers" component={ReadersPage} />
+      <Route path="/readers/:id" component={ReaderDetailPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/help" component={HelpPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/community" component={CommunityPage} />
+      <Route path="/forum" component={ForumPage} />
+      <Route path="/forum/topics/:topicId" component={ForumTopicPage} />
+      <Route component={NotConfiguredRedirect} />
+    </Switch>
+  );
+}
 
-          {/* Admin */}
-          <Route path="/admin" component={AdminDashboardPage} />
-          <Route path="/admin/users" component={AdminUsersPage} />
-          <Route path="/admin/readers" component={AdminReadersPage} />
-          <Route path="/admin/transactions" component={AdminTransactionsPage} />
-          <Route path="/admin/flags" component={AdminFlagsPage} />
-          <Route path="/admin/announcements" component={AdminAnnouncementsPage} />
-          <Route path="/admin/messages" component={AdminMessagesPage} />
-          
-          <Route component={NotFound} />
-        </Switch>
-      </QueryClientProvider>
-    </ClerkProvider>
+function AppRoutes() {
+  return (
+    <Switch>
+      <Route path="/" component={HomeRoute} />
+      <Route path="/sign-in" component={SignInPage} />
+      <Route path="/sign-up" component={SignUpPage} />
+
+      {/* Public */}
+      <Route path="/readers" component={ReadersPage} />
+      <Route path="/readers/:id" component={ReaderDetailPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/help" component={HelpPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/community" component={CommunityPage} />
+      <Route path="/forum" component={ForumPage} />
+      <Route path="/forum/new" component={ForumNewPage} />
+      <Route path="/forum/topics/:topicId" component={ForumTopicPage} />
+
+      {/* Client */}
+      <Route path="/dashboard" component={DashboardPage} />
+      <Route path="/wallet" component={WalletPage} />
+      <Route path="/sessions" component={SessionsPage} />
+      <Route path="/sessions/:sessionId" component={SessionRoomPage} />
+
+      {/* Reader */}
+      <Route path="/reader" component={ReaderDashboardPage} />
+      <Route path="/reader/profile" component={ReaderProfilePage} />
+      <Route path="/reader/sessions" component={ReaderSessionsPage} />
+
+      {/* Admin */}
+      <Route path="/admin" component={AdminDashboardPage} />
+      <Route path="/admin/users" component={AdminUsersPage} />
+      <Route path="/admin/readers" component={AdminReadersPage} />
+      <Route path="/admin/transactions" component={AdminTransactionsPage} />
+      <Route path="/admin/flags" component={AdminFlagsPage} />
+      <Route path="/admin/announcements" component={AdminAnnouncementsPage} />
+
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
 function App() {
+  if (!auth0Domain || !auth0ClientId || !auth0Audience) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <WouterRouter base={basePath}>
+          <TooltipProvider>
+            <NotConfiguredBanner />
+            <PublicOnlyRoutes />
+            <Toaster />
+          </TooltipProvider>
+        </WouterRouter>
+      </QueryClientProvider>
+    );
+  }
+
   return (
-    <WouterRouter base={basePath}>
-      <TooltipProvider>
-        <ClerkProviderWithRoutes />
-        <Toaster />
-      </TooltipProvider>
-    </WouterRouter>
+    <Auth0Provider
+      domain={auth0Domain}
+      clientId={auth0ClientId}
+      authorizationParams={{
+        redirect_uri: `${window.location.origin}${basePath || ""}/`,
+        audience: auth0Audience,
+      }}
+      cacheLocation="localstorage"
+    >
+      <QueryClientProvider client={queryClient}>
+        <AuthBootstrap />
+        <WouterRouter base={basePath}>
+          <TooltipProvider>
+            <AppRoutes />
+            <Toaster />
+          </TooltipProvider>
+        </WouterRouter>
+      </QueryClientProvider>
+    </Auth0Provider>
   );
 }
 

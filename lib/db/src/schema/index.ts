@@ -41,7 +41,7 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    clerkUserId: text("clerk_user_id").notNull().unique(),
+    authUserId: text("auth_user_id").notNull().unique(),
     role: userRoleEnum("role").notNull().default("client"),
     status: userStatusEnum("status").notNull().default("active"),
     displayName: text("display_name").notNull(),
@@ -55,7 +55,7 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("users_role_idx").on(t.role), index("users_clerk_idx").on(t.clerkUserId)],
+  (t) => [index("users_role_idx").on(t.role), index("users_auth_idx").on(t.authUserId)],
 );
 
 export const readers = pgTable(

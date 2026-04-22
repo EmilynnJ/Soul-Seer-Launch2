@@ -1,11 +1,10 @@
-import { useGetReader, getGetReaderQueryKey, useListReaderReviews, getListReaderReviewsQueryKey, useAddFavorite, getListMyFavoritesQueryKey, useRemoveFavorite, useRequestSession } from "@workspace/api-client-react";
+import { useGetReader, getGetReaderQueryKey, useListReaderReviews, getListReaderReviewsQueryKey, useRequestSession } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/AppLayout";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Video, Phone, MessageSquare, Heart, Clock, Loader2 } from "lucide-react";
+import { Star, Video, Phone, MessageSquare, Loader2 } from "lucide-react";
 import { formatCents, formatDate } from "@/lib/format";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState } from "react";
@@ -15,7 +14,6 @@ export default function ReaderDetailPage() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: reader, isLoading } = useGetReader(id as string, {
     query: {
@@ -28,15 +26,6 @@ export default function ReaderDetailPage() {
     query: {
       enabled: !!id,
       queryKey: getListReaderReviewsQueryKey(id as string),
-    }
-  });
-
-  const addFav = useAddFavorite({
-    mutation: {
-      onSuccess: () => {
-        toast({ title: "Added to favorites" });
-        queryClient.invalidateQueries({ queryKey: getListMyFavoritesQueryKey() });
-      }
     }
   });
 
@@ -117,9 +106,6 @@ export default function ReaderDetailPage() {
                   </DialogContent>
                 </Dialog>
 
-                <Button variant="outline" className="w-full font-sans" onClick={() => addFav.mutate({ data: { readerId: reader.id }})} disabled={addFav.isPending}>
-                  <Heart className="w-4 h-4 mr-2" /> Add to Favorites
-                </Button>
               </div>
             </div>
           </div>

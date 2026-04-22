@@ -12,7 +12,7 @@ import { Wallet, CreditCard, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2, Z
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react/src/custom-fetch";
+import { customFetch } from "@workspace/api-client-react";
 
 export default function WalletPage() {
   return (

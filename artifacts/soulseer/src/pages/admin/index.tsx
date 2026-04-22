@@ -42,7 +42,6 @@ function AdminDashboardContent() {
               </Button>
             </Link>
             <Link href="/admin/announcements"><Button variant="outline" className="font-sans border-secondary text-secondary">Announce</Button></Link>
-            <Link href="/admin/messages"><Button variant="outline" className="font-sans border-secondary text-secondary">Support Inbox</Button></Link>
           </div>
         </div>
 
