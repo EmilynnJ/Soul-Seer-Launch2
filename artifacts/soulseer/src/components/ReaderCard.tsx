@@ -1,4 +1,4 @@
-import { Reader } from "@workspace/api-zod";
+import { Reader } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Star, Video, Phone, MessageSquare } from "lucide-react";
 import { formatCents } from "@/lib/format";
@@ -48,7 +48,7 @@ export function ReaderCard({ reader }: ReaderCardProps) {
         {/* Bottom half: Services & Rates */}
         <div className="p-6 pt-4 bg-muted/20 border-t border-border mt-auto">
           <div className="flex flex-wrap justify-center gap-2 mb-4">
-            {reader.specialties?.slice(0, 3).map(spec => (
+            {reader.specialties?.slice(0, 3).map((spec: string) => (
               <Badge key={spec} variant="outline" className="bg-background border-border text-muted-foreground font-serif text-xs px-2 py-0.5">
                 {spec}
               </Badge>

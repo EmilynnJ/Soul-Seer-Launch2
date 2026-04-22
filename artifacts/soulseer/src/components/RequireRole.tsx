@@ -1,6 +1,5 @@
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { ReactNode } from "react";
-import { UserRole } from "@workspace/api-zod";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";

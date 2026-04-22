@@ -37,7 +37,7 @@ function SessionRoomContent() {
     }
   });
 
-  const { data: messages } = useListSessionMessages(sessionId as string, undefined, {
+  const { data: messages } = useListSessionMessages(sessionId as string, {
     query: {
       enabled: !!sessionId && (session?.status === 'in_progress' || session?.status === 'completed'),
       queryKey: getListSessionMessagesQueryKey(sessionId as string),
@@ -46,7 +46,7 @@ function SessionRoomContent() {
   });
 
   const [msgBody, setMsgBody] = useState("");
-  const postMsg = usePostSessionMessage(sessionId as string, {
+  const postMsg = usePostSessionMessage({
     mutation: {
       onSuccess: () => {
         setMsgBody("");
@@ -55,7 +55,7 @@ function SessionRoomContent() {
     }
   });
 
-  const endSess = useEndSession(sessionId as string, {
+  const endSess = useEndSession({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetSessionQueryKey(sessionId as string) });
@@ -67,7 +67,7 @@ function SessionRoomContent() {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!msgBody.trim()) return;
-    postMsg.mutate({ data: { body: msgBody } });
+    postMsg.mutate({ sessionId: sessionId as string, data: { body: msgBody } });
   };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);

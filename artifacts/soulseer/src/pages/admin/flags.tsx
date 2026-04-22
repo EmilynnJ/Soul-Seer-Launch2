@@ -7,7 +7,7 @@ import { Loader2, Flag as FlagIcon, CheckCircle, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { ResolveFlagBodyAction } from "@workspace/api-zod";
+import { ResolveFlagBodyAction } from "@workspace/api-client-react";
 
 export default function AdminFlagsPage() {
   return (

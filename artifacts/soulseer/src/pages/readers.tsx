@@ -1,5 +1,5 @@
 import { useListReaders, getListReadersQueryKey } from "@workspace/api-client-react";
-import { ListReadersStatus, ListReadersService } from "@workspace/api-zod";
+import type { ListReadersStatus, ListReadersService } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ReaderCard } from "@/components/ReaderCard";
 import { Input } from "@/components/ui/input";

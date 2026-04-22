@@ -8,7 +8,7 @@ import { formatCents, formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState } from "react";
-import { ServiceType } from "@workspace/api-zod";
+import { ServiceType } from "@workspace/api-client-react";
 
 export default function ReaderDetailPage() {
   const { id } = useParams();
@@ -22,7 +22,7 @@ export default function ReaderDetailPage() {
     }
   });
 
-  const { data: reviews } = useListReaderReviews(id as string, undefined, {
+  const { data: reviews } = useListReaderReviews(id as string, {
     query: {
       enabled: !!id,
       queryKey: getListReaderReviewsQueryKey(id as string),

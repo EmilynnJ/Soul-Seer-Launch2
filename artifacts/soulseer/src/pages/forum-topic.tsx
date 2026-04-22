@@ -25,14 +25,14 @@ export default function ForumTopicPage() {
   const { toast } = useToast();
   const [replyBody, setReplyBody] = useState("");
   
-  const replyMutation = useReplyToForumTopic(topicId as string, {
+  const replyMutation = useReplyToForumTopic({
     mutation: {
       onSuccess: () => {
         setReplyBody("");
         queryClient.invalidateQueries({ queryKey: getGetForumTopicQueryKey(topicId as string) });
         toast({ title: "Reply posted successfully" });
       },
-      onError: (err) => {
+      onError: (err: Error) => {
         toast({ title: "Failed to post reply", description: err.message, variant: "destructive" });
       }
     }
@@ -41,7 +41,7 @@ export default function ForumTopicPage() {
   const handleReply = (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyBody.trim()) return;
-    replyMutation.mutate({ data: { body: replyBody } });
+    replyMutation.mutate({ topicId: topicId as string, data: { body: replyBody } });
   };
 
   const [flagReason, setFlagReason] = useState("");
@@ -117,7 +117,7 @@ export default function ForumTopicPage() {
                         variant="destructive" 
                         className="w-full font-sans"
                         disabled={flagMutation.isPending || !flagReason.trim()}
-                        onClick={() => flagMutation.mutate({ data: { reason: flagReason }, params: { postId: topic.id, postType: 'topic' }})}
+                        onClick={() => flagMutation.mutate({ postId: topic.id, data: { reason: flagReason }})}
                       >
                         {flagMutation.isPending ? <Loader2 className="animate-spin" /> : "Submit Report"}
                       </Button>
@@ -178,7 +178,7 @@ export default function ForumTopicPage() {
                               variant="destructive" 
                               className="w-full font-sans"
                               disabled={flagMutation.isPending || !flagReason.trim()}
-                              onClick={() => flagMutation.mutate({ data: { reason: flagReason }, params: { postId: reply.id, postType: 'reply' }})}
+                              onClick={() => flagMutation.mutate({ postId: reply.id, data: { reason: flagReason }})}
                             >
                               {flagMutation.isPending ? <Loader2 className="animate-spin" /> : "Submit Report"}
                             </Button>

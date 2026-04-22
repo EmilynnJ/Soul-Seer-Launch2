@@ -13,8 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { ReaderStatus } from "@workspace/api-zod";
-
 const profileSchema = z.object({
   displayName: z.string().min(2),
   tagline: z.string().optional(),

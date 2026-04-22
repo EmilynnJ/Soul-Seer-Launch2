@@ -30,7 +30,7 @@ function AdminTransactionsContent() {
   const [refundAmountStr, setRefundAmountStr] = useState("");
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
 
-  const refundTx = useAdminRefundTransaction(selectedTxId as string, {
+  const refundTx = useAdminRefundTransaction({
     mutation: {
       onSuccess: () => {
         toast({ title: "Refund successful" });
@@ -39,7 +39,7 @@ function AdminTransactionsContent() {
         setRefundAmountStr("");
         setSelectedTxId(null);
       },
-      onError: (e) => {
+      onError: (e: Error) => {
         toast({ title: "Refund failed", description: e.message, variant: "destructive" });
       }
     }
@@ -49,7 +49,7 @@ function AdminTransactionsContent() {
     e.preventDefault();
     if (!selectedTxId) return;
     const amountCents = Math.round(parseFloat(refundAmountStr) * 100);
-    refundTx.mutate({ data: { amountCents, reason: refundReason }});
+    refundTx.mutate({ transactionId: selectedTxId, data: { amountCents, reason: refundReason }});
   };
 
   return (
