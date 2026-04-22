@@ -14,6 +14,7 @@ runButton = "Project"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
+integrations = ["stripe:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -30,3 +31,11 @@ externalPort = 8081
 [[ports]]
 localPort = 21901
 externalPort = 80
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+NEON_DATABASE_URL = "postgresql://neondb_owner:npg_CBlbeSMsu0U1@ep-young-paper-a47a9e91-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
