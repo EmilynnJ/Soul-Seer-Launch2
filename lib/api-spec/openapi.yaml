@@ -3,34 +3,1581 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SoulSeer API — pay-per-minute spiritual readings & community
 servers:
   - url: /api
     description: Base API path
+
 tags:
   - name: health
-    description: Health operations
+  - name: me
+  - name: readers
+  - name: sessions
+  - name: billing
+  - name: messages
+  - name: forum
+  - name: community
+  - name: admin
+  - name: rtc
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Current user (account + role)
+  # ──────────────────────────────────────────────────────────────────
+  /me:
+    get:
+      operationId: getMe
+      tags: [me]
+      summary: Get the current authenticated user (creates client account on first call)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/balance:
+    get:
+      operationId: getMyBalance
+      tags: [billing]
+      summary: Get current client balance and auto-reload settings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientBalance" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/transactions:
+    get:
+      operationId: listMyTransactions
+      tags: [billing]
+      summary: List my transaction history
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: array
+                items: { $ref: "#/components/schemas/Transaction" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/sessions:
+    get:
+      operationId: listMySessions
+      tags: [sessions]
+      summary: List my reading sessions (as client or reader)
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SessionSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/favorites:
+    get:
+      operationId: listMyFavorites
+      tags: [readers]
+      summary: List my favorite readers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Reader" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: addFavorite
+      tags: [readers]
+      summary: Add a reader to favorites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [readerId]
+              properties:
+                readerId: { type: string }
+      responses:
+        "204": { description: Added }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/favorites/{readerId}:
+    delete:
+      operationId: removeFavorite
+      tags: [readers]
+      summary: Remove a reader from favorites
+      parameters:
+        - in: path
+          name: readerId
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Removed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Reader profiles & dashboard
+  # ──────────────────────────────────────────────────────────────────
+  /readers:
+    get:
+      operationId: listReaders
+      tags: [readers]
+      summary: Browse all active reader profiles
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [online, offline, busy, all], default: all }
+        - in: query
+          name: service
+          schema: { type: string, enum: [chat, phone, video] }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Reader" }
+
+  /readers/online:
+    get:
+      operationId: listOnlineReaders
+      tags: [readers]
+      summary: List readers currently online (homepage feature)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Reader" }
+
+  /readers/{readerId}:
+    get:
+      operationId: getReader
+      tags: [readers]
+      summary: Get a single reader's public profile
+      parameters:
+        - in: path
+          name: readerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /readers/{readerId}/reviews:
+    get:
+      operationId: listReaderReviews
+      tags: [readers]
+      summary: List published reviews for a reader
+      parameters:
+        - in: path
+          name: readerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Review" }
+
+  /readers/me/profile:
+    get:
+      operationId: getMyReaderProfile
+      tags: [readers]
+      summary: Get my reader profile (reader role)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      operationId: updateMyReaderProfile
+      tags: [readers]
+      summary: Update my reader profile (bio, picture, rates, status)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateReaderProfile" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /readers/me/availability:
+    get:
+      operationId: getMyAvailability
+      tags: [readers]
+      summary: Get my weekly availability
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AvailabilitySlot" }
+    put:
+      operationId: setMyAvailability
+      tags: [readers]
+      summary: Replace my weekly availability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slots]
+              properties:
+                slots:
+                  type: array
+                  items: { $ref: "#/components/schemas/AvailabilitySlotInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AvailabilitySlot" }
+
+  /readers/me/earnings:
+    get:
+      operationId: getMyEarnings
+      tags: [readers]
+      summary: Reader earnings dashboard summary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderEarnings" }
+
+  /readers/me/analytics:
+    get:
+      operationId: getMyReaderAnalytics
+      tags: [readers]
+      summary: Reader session/client analytics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderAnalytics" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Sessions (chat / phone / video) — pay-per-minute
+  # ──────────────────────────────────────────────────────────────────
+  /sessions:
+    post:
+      operationId: requestSession
+      tags: [sessions]
+      summary: Request a pay-per-minute reading session with a reader
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RequestSessionInput" }
+      responses:
+        "201":
+          description: Session created (status=pending)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /sessions/{sessionId}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: Get session details with live billing snapshot
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /sessions/{sessionId}/accept:
+    post:
+      operationId: acceptSession
+      tags: [sessions]
+      summary: Reader accepts a pending session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+
+  /sessions/{sessionId}/decline:
+    post:
+      operationId: declineSession
+      tags: [sessions]
+      summary: Reader declines a pending session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Declined
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+
+  /sessions/{sessionId}/start:
+    post:
+      operationId: startSession
+      tags: [sessions]
+      summary: Start the timer for an accepted session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+
+  /sessions/{sessionId}/end:
+    post:
+      operationId: endSession
+      tags: [sessions]
+      summary: End an in-progress session and finalize billing
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ended
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+
+  /sessions/{sessionId}/tick:
+    post:
+      operationId: tickSession
+      tags: [sessions]
+      summary: Heartbeat — bills the next minute, checks balance, returns billing state
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionTick" }
+
+  /sessions/{sessionId}/messages:
+    get:
+      operationId: listSessionMessages
+      tags: [sessions]
+      summary: List chat transcript for a session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SessionMessage" }
+    post:
+      operationId: postSessionMessage
+      tags: [sessions]
+      summary: Post a chat message in an active session
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionMessage" }
+
+  /sessions/{sessionId}/review:
+    post:
+      operationId: reviewSession
+      tags: [sessions]
+      summary: Submit a 1-5 star review with optional feedback
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewInput" }
+      responses:
+        "201":
+          description: Review submitted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Real-time tokens (Agora + Ably)
+  # ──────────────────────────────────────────────────────────────────
+  /rtc/agora-token:
+    post:
+      operationId: getAgoraToken
+      tags: [rtc]
+      summary: Issue an Agora RTC token for a session channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              properties:
+                sessionId: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgoraToken" }
+
+  /rtc/ably-token:
+    post:
+      operationId: getAblyToken
+      tags: [rtc]
+      summary: Issue an Ably token request for the current user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AblyTokenRequest" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Billing — Stripe top-ups & payouts
+  # ──────────────────────────────────────────────────────────────────
+  /billing/topup:
+    post:
+      operationId: createTopup
+      tags: [billing]
+      summary: Create a Stripe checkout session to add funds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountCents]
+              properties:
+                amountCents: { type: integer, minimum: 1000, maximum: 50000000 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckoutSession" }
+
+  /billing/auto-reload:
+    put:
+      operationId: setAutoReload
+      tags: [billing]
+      summary: Configure auto-reload thresholds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AutoReloadInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientBalance" }
+
+  /billing/dev-credit:
+    post:
+      operationId: devGrantCredit
+      tags: [billing]
+      summary: DEV ONLY — grant test credit to current user balance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountCents]
+              properties:
+                amountCents: { type: integer, minimum: 100, maximum: 10000000 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientBalance" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Messaging (free off-session messages)
+  # ──────────────────────────────────────────────────────────────────
+  /messages/threads:
+    get:
+      operationId: listThreads
+      tags: [messages]
+      summary: List my conversation threads
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Thread" }
+
+  /messages/threads/{threadId}:
+    get:
+      operationId: getThread
+      tags: [messages]
+      summary: Get a single thread with its messages
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ThreadDetail" }
+
+  /messages/threads/with/{userId}:
+    post:
+      operationId: openThreadWith
+      tags: [messages]
+      summary: Open (or get) a direct thread with another user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Thread" }
+
+  /messages/threads/{threadId}/messages:
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a thread
+      parameters:
+        - in: path
+          name: threadId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+
+  /messages/admin:
+    post:
+      operationId: messageAdmin
+      tags: [messages]
+      summary: Open or post to the admin support thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Community Forum
+  # ──────────────────────────────────────────────────────────────────
+  /forum/categories:
+    get:
+      operationId: listForumCategories
+      tags: [forum]
+      summary: List forum categories with topic counts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ForumCategory" }
+
+  /forum/topics:
+    get:
+      operationId: listForumTopics
+      tags: [forum]
+      summary: List forum topics, optionally filtered by category
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ForumTopic" }
+    post:
+      operationId: createForumTopic
+      tags: [forum]
+      summary: Create a new forum topic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateForumTopicInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ForumTopic" }
+
+  /forum/topics/{topicId}:
+    get:
+      operationId: getForumTopic
+      tags: [forum]
+      summary: Get a topic with its replies
+      parameters:
+        - in: path
+          name: topicId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ForumTopicDetail" }
+
+  /forum/topics/{topicId}/replies:
+    post:
+      operationId: replyToForumTopic
+      tags: [forum]
+      summary: Post a reply to a topic
+      parameters:
+        - in: path
+          name: topicId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 8000 }
+      responses:
+        "201":
+          description: Reply posted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ForumReply" }
+
+  /forum/posts/{postId}/flag:
+    post:
+      operationId: flagForumPost
+      tags: [forum]
+      summary: Flag a topic or reply for moderator review
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        "204": { description: Flagged }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Community (announcements + external links)
+  # ──────────────────────────────────────────────────────────────────
+  /community/announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [community]
+      summary: List active community announcements
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Announcement" }
+
+  /community/links:
+    get:
+      operationId: getCommunityLinks
+      tags: [community]
+      summary: Get external community links (Discord, Facebook)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommunityLinks" }
+
+  /community/newsletter:
+    post:
+      operationId: subscribeNewsletter
+      tags: [community]
+      summary: Subscribe an email to the SoulSeer newsletter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "204": { description: Subscribed }
+
+  # ──────────────────────────────────────────────────────────────────
+  # Admin Dashboard
+  # ──────────────────────────────────────────────────────────────────
+  /admin/overview:
+    get:
+      operationId: getAdminOverview
+      tags: [admin]
+      summary: Platform analytics overview
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOverview" }
+
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List all platform users
+      parameters:
+        - in: query
+          name: role
+          schema: { type: string, enum: [client, reader, admin] }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminUser" }
+
+  /admin/users/{userId}:
+    patch:
+      operationId: updateAdminUser
+      tags: [admin]
+      summary: Update a user (status, role, restriction)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUserUpdate" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUser" }
+
+  /admin/readers:
+    post:
+      operationId: createReader
+      tags: [admin]
+      summary: Create a new reader account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateReaderInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderDetail" }
+
+  /admin/readers/{readerId}:
+    patch:
+      operationId: adminUpdateReader
+      tags: [admin]
+      summary: Admin edits a reader's profile (bio, picture, rates)
+      parameters:
+        - in: path
+          name: readerId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateReaderProfile" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderDetail" }
+
+  /admin/transactions:
+    get:
+      operationId: listAdminTransactions
+      tags: [admin]
+      summary: All platform transactions
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Transaction" }
+
+  /admin/transactions/{transactionId}/refund:
+    post:
+      operationId: adminRefundTransaction
+      tags: [admin]
+      summary: Refund or adjust a transaction
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountCents, reason]
+              properties:
+                amountCents: { type: integer }
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transaction" }
+
+  /admin/flags:
+    get:
+      operationId: listAdminFlags
+      tags: [admin]
+      summary: List flagged content awaiting review
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ContentFlag" }
+
+  /admin/flags/{flagId}/resolve:
+    post:
+      operationId: resolveFlag
+      tags: [admin]
+      summary: Resolve a flag (dismiss or remove content)
+      parameters:
+        - in: path
+          name: flagId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [dismiss, remove] }
+                note: { type: string }
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContentFlag" }
+
+  /admin/announcements:
+    post:
+      operationId: createAnnouncement
+      tags: [admin]
+      summary: Publish a community announcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, body]
+              properties:
+                title: { type: string }
+                body: { type: string }
+                isPinned: { type: boolean, default: false }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+
 components:
+  responses:
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        message: { type: string }
+
+    UserRole:
+      type: string
+      enum: [client, reader, admin]
+
+    Me:
+      type: object
+      required: [id, role, displayName, balanceCents]
+      properties:
+        id: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        displayName: { type: string }
+        email: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        balanceCents: { type: integer }
+        readerId: { type: string, nullable: true, description: "Set when role=reader" }
+        unreadMessages: { type: integer }
+
+    ReaderStatus:
+      type: string
+      enum: [online, offline, busy]
+
+    Reader:
+      type: object
+      required: [id, displayName, status, ratePerMinChatCents, ratePerMinPhoneCents, ratePerMinVideoCents, rating, reviewCount]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        tagline: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        status: { $ref: "#/components/schemas/ReaderStatus" }
+        specialties:
+          type: array
+          items: { type: string }
+        ratePerMinChatCents: { type: integer }
+        ratePerMinPhoneCents: { type: integer }
+        ratePerMinVideoCents: { type: integer }
+        rating: { type: number, format: float }
+        reviewCount: { type: integer }
+
+    ReaderDetail:
+      allOf:
+        - $ref: "#/components/schemas/Reader"
+        - type: object
+          properties:
+            bio: { type: string, nullable: true }
+            yearsExperience: { type: integer, nullable: true }
+            availability:
+              type: array
+              items: { $ref: "#/components/schemas/AvailabilitySlot" }
+            recentReviews:
+              type: array
+              items: { $ref: "#/components/schemas/Review" }
+
+    UpdateReaderProfile:
+      type: object
+      properties:
+        displayName: { type: string }
+        tagline: { type: string }
+        bio: { type: string }
+        avatarUrl: { type: string }
+        specialties:
+          type: array
+          items: { type: string }
+        ratePerMinChatCents: { type: integer }
+        ratePerMinPhoneCents: { type: integer }
+        ratePerMinVideoCents: { type: integer }
+        status: { $ref: "#/components/schemas/ReaderStatus" }
+        yearsExperience: { type: integer }
+
+    AvailabilitySlot:
+      type: object
+      required: [id, dayOfWeek, startMinute, endMinute]
+      properties:
+        id: { type: string }
+        dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+        startMinute: { type: integer, minimum: 0, maximum: 1440 }
+        endMinute: { type: integer, minimum: 0, maximum: 1440 }
+
+    AvailabilitySlotInput:
+      type: object
+      required: [dayOfWeek, startMinute, endMinute]
+      properties:
+        dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+        startMinute: { type: integer, minimum: 0, maximum: 1440 }
+        endMinute: { type: integer, minimum: 0, maximum: 1440 }
+
+    ServiceType:
+      type: string
+      enum: [chat, phone, video]
+
+    SessionStatus:
+      type: string
+      enum: [pending, accepted, in_progress, completed, declined, cancelled, failed]
+
+    RequestSessionInput:
+      type: object
+      required: [readerId, service]
+      properties:
+        readerId: { type: string }
+        service: { $ref: "#/components/schemas/ServiceType" }
+
+    Session:
+      type: object
+      required: [id, readerId, clientId, service, status, ratePerMinCents, billedSeconds, billedCents, createdAt, channelName]
+      properties:
+        id: { type: string }
+        readerId: { type: string }
+        readerName: { type: string }
+        readerAvatarUrl: { type: string, nullable: true }
+        clientId: { type: string }
+        clientName: { type: string }
+        clientAvatarUrl: { type: string, nullable: true }
+        service: { $ref: "#/components/schemas/ServiceType" }
+        status: { $ref: "#/components/schemas/SessionStatus" }
+        ratePerMinCents: { type: integer }
+        billedSeconds: { type: integer }
+        billedCents: { type: integer }
+        channelName: { type: string }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        endedAt: { type: string, format: date-time, nullable: true }
+        clientBalanceCentsAtStart: { type: integer, nullable: true }
+
+    SessionSummary:
+      type: object
+      required: [id, readerId, readerName, clientId, clientName, service, status, billedSeconds, billedCents, createdAt]
+      properties:
+        id: { type: string }
+        readerId: { type: string }
+        readerName: { type: string }
+        readerAvatarUrl: { type: string, nullable: true }
+        clientId: { type: string }
+        clientName: { type: string }
+        clientAvatarUrl: { type: string, nullable: true }
+        service: { $ref: "#/components/schemas/ServiceType" }
+        status: { $ref: "#/components/schemas/SessionStatus" }
+        billedSeconds: { type: integer }
+        billedCents: { type: integer }
+        createdAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+
+    SessionTick:
+      type: object
+      required: [sessionId, status, billedSeconds, billedCents, clientBalanceCents, lowBalanceWarning]
+      properties:
+        sessionId: { type: string }
+        status: { $ref: "#/components/schemas/SessionStatus" }
+        billedSeconds: { type: integer }
+        billedCents: { type: integer }
+        clientBalanceCents: { type: integer }
+        secondsRemaining: { type: integer, description: "Seconds the client can still afford" }
+        lowBalanceWarning: { type: boolean }
+
+    SessionMessage:
+      type: object
+      required: [id, sessionId, senderId, senderName, body, createdAt]
+      properties:
+        id: { type: string }
+        sessionId: { type: string }
+        senderId: { type: string }
+        senderName: { type: string }
+        senderAvatarUrl: { type: string, nullable: true }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Review:
+      type: object
+      required: [id, sessionId, readerId, clientId, clientName, rating, createdAt]
+      properties:
+        id: { type: string }
+        sessionId: { type: string }
+        readerId: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        body: { type: string, nullable: true }
+        readerResponse: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    ReviewInput:
+      type: object
+      required: [rating]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        body: { type: string }
+
+    AgoraToken:
+      type: object
+      required: [appId, channel, token, uid, expiresAt]
+      properties:
+        appId: { type: string }
+        channel: { type: string }
+        token: { type: string }
+        uid: { type: integer }
+        expiresAt: { type: string, format: date-time }
+        configured: { type: boolean, description: "False when Agora keys are not yet set" }
+
+    AblyTokenRequest:
+      type: object
+      required: [keyName, timestamp, nonce, mac, ttl, capability, clientId]
+      properties:
+        keyName: { type: string }
+        timestamp: { type: integer }
+        nonce: { type: string }
+        mac: { type: string }
+        ttl: { type: integer }
+        capability: { type: string }
+        clientId: { type: string }
+        configured: { type: boolean }
+
+    ClientBalance:
+      type: object
+      required: [balanceCents, autoReloadEnabled]
+      properties:
+        balanceCents: { type: integer }
+        autoReloadEnabled: { type: boolean }
+        autoReloadThresholdCents: { type: integer, nullable: true }
+        autoReloadAmountCents: { type: integer, nullable: true }
+
+    AutoReloadInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        thresholdCents: { type: integer }
+        amountCents: { type: integer }
+
+    Transaction:
+      type: object
+      required: [id, kind, amountCents, balanceAfterCents, createdAt]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [topup, session_charge, refund, payout, adjustment, dev_credit]
+        amountCents: { type: integer, description: "Positive = credit to user, negative = debit" }
+        balanceAfterCents: { type: integer }
+        sessionId: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CheckoutSession:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
+        configured: { type: boolean, description: "False when Stripe is not yet set up" }
+
+    ReaderEarnings:
+      type: object
+      required: [todayCents, last7DaysCents, last30DaysCents, allTimeCents, pendingPayoutCents]
+      properties:
+        todayCents: { type: integer }
+        last7DaysCents: { type: integer }
+        last30DaysCents: { type: integer }
+        allTimeCents: { type: integer }
+        pendingPayoutCents: { type: integer }
+        breakdown:
+          type: object
+          properties:
+            chatCents: { type: integer }
+            phoneCents: { type: integer }
+            videoCents: { type: integer }
+        recentSessions:
+          type: array
+          items: { $ref: "#/components/schemas/SessionSummary" }
+
+    ReaderAnalytics:
+      type: object
+      required: [totalSessions, returningClients, avgDurationSeconds, avgRating]
+      properties:
+        totalSessions: { type: integer }
+        returningClients: { type: integer }
+        avgDurationSeconds: { type: integer }
+        avgRating: { type: number, format: float }
+        sessionsLast30Days:
+          type: array
+          items:
+            type: object
+            required: [date, count, earningsCents]
+            properties:
+              date: { type: string, format: date }
+              count: { type: integer }
+              earningsCents: { type: integer }
+
+    Thread:
+      type: object
+      required: [id, otherUserId, otherUserName, lastMessageAt, unreadCount]
+      properties:
+        id: { type: string }
+        otherUserId: { type: string }
+        otherUserName: { type: string }
+        otherUserAvatarUrl: { type: string, nullable: true }
+        otherUserRole: { $ref: "#/components/schemas/UserRole" }
+        lastMessagePreview: { type: string, nullable: true }
+        lastMessageAt: { type: string, format: date-time, nullable: true }
+        unreadCount: { type: integer }
+
+    ThreadDetail:
+      allOf:
+        - $ref: "#/components/schemas/Thread"
+        - type: object
+          required: [messages]
+          properties:
+            messages:
+              type: array
+              items: { $ref: "#/components/schemas/Message" }
+
+    Message:
+      type: object
+      required: [id, threadId, senderId, senderName, body, createdAt]
+      properties:
+        id: { type: string }
+        threadId: { type: string }
+        senderId: { type: string }
+        senderName: { type: string }
+        senderAvatarUrl: { type: string, nullable: true }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: string, format: date-time, nullable: true }
+
+    ForumCategory:
+      type: object
+      required: [id, slug, name, topicCount]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        topicCount: { type: integer }
+        latestTopicAt: { type: string, format: date-time, nullable: true }
+
+    ForumTopic:
+      type: object
+      required: [id, categorySlug, categoryName, title, authorId, authorName, replyCount, createdAt, lastActivityAt]
+      properties:
+        id: { type: string }
+        categorySlug: { type: string }
+        categoryName: { type: string }
+        title: { type: string }
+        excerpt: { type: string, nullable: true }
+        authorId: { type: string }
+        authorName: { type: string }
+        authorAvatarUrl: { type: string, nullable: true }
+        authorRole: { $ref: "#/components/schemas/UserRole" }
+        replyCount: { type: integer }
+        isPinned: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        lastActivityAt: { type: string, format: date-time }
+
+    CreateForumTopicInput:
+      type: object
+      required: [categorySlug, title, body]
+      properties:
+        categorySlug: { type: string }
+        title: { type: string, minLength: 3, maxLength: 200 }
+        body: { type: string, minLength: 3, maxLength: 8000 }
+
+    ForumReply:
+      type: object
+      required: [id, topicId, authorId, authorName, body, createdAt]
+      properties:
+        id: { type: string }
+        topicId: { type: string }
+        authorId: { type: string }
+        authorName: { type: string }
+        authorAvatarUrl: { type: string, nullable: true }
+        authorRole: { $ref: "#/components/schemas/UserRole" }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ForumTopicDetail:
+      allOf:
+        - $ref: "#/components/schemas/ForumTopic"
+        - type: object
+          required: [body, replies]
+          properties:
+            body: { type: string }
+            replies:
+              type: array
+              items: { $ref: "#/components/schemas/ForumReply" }
+
+    Announcement:
+      type: object
+      required: [id, title, body, isPinned, createdAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        body: { type: string }
+        isPinned: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    CommunityLinks:
+      type: object
+      required: [discordUrl, facebookUrl]
+      properties:
+        discordUrl: { type: string }
+        facebookUrl: { type: string }
+
+    AdminOverview:
+      type: object
+      required: [totalUsers, totalReaders, totalClients, sessionsToday, revenueTodayCents, revenueMonthCents, openFlags]
+      properties:
+        totalUsers: { type: integer }
+        totalReaders: { type: integer }
+        totalClients: { type: integer }
+        readersOnline: { type: integer }
+        sessionsToday: { type: integer }
+        sessionsLast7Days: { type: integer }
+        revenueTodayCents: { type: integer }
+        revenueMonthCents: { type: integer }
+        platformShareCents: { type: integer }
+        readerShareCents: { type: integer }
+        openFlags: { type: integer }
+        revenueByDay:
+          type: array
+          items:
+            type: object
+            required: [date, revenueCents, sessions]
+            properties:
+              date: { type: string, format: date }
+              revenueCents: { type: integer }
+              sessions: { type: integer }
+
+    AdminUser:
+      type: object
+      required: [id, role, displayName, status, createdAt]
+      properties:
+        id: { type: string }
+        role: { $ref: "#/components/schemas/UserRole" }
+        displayName: { type: string }
+        email: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        status: { type: string, enum: [active, restricted, banned] }
+        balanceCents: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    AdminUserUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [active, restricted, banned] }
+        role: { $ref: "#/components/schemas/UserRole" }
+
+    CreateReaderInput:
+      type: object
+      required: [displayName, email, ratePerMinChatCents, ratePerMinPhoneCents, ratePerMinVideoCents]
+      properties:
+        displayName: { type: string }
+        email: { type: string, format: email }
+        tagline: { type: string }
+        bio: { type: string }
+        avatarUrl: { type: string }
+        specialties:
+          type: array
+          items: { type: string }
+        ratePerMinChatCents: { type: integer }
+        ratePerMinPhoneCents: { type: integer }
+        ratePerMinVideoCents: { type: integer }
+        yearsExperience: { type: integer }
+
+    ContentFlag:
+      type: object
+      required: [id, postType, postId, reason, status, createdAt]
+      properties:
+        id: { type: string }
+        postType: { type: string, enum: [topic, reply] }
+        postId: { type: string }
+        reason: { type: string }
+        snippet: { type: string, nullable: true }
+        flaggedById: { type: string }
+        flaggedByName: { type: string }
+        status: { type: string, enum: [open, dismissed, removed] }
+        createdAt: { type: string, format: date-time }

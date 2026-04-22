@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "SoulSeer"
+version = "1.0.0"
+id = "artifacts/soulseer"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21901
+
+[services.development]
+run = "pnpm --filter @workspace/soulseer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/soulseer", "run", "build" ]
+publicDir = "artifacts/soulseer/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21901"
+BASE_PATH = "/"
