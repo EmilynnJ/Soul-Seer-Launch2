@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "useUnknownInCatchVariables": false
   },
   "include": ["src"],
   "references": [

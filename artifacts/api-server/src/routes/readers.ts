@@ -12,7 +12,7 @@ router.get("/readers", async (req, res: Response) => {
   const service = typeof req.query.service === "string" ? req.query.service : "";
   const status = typeof req.query.status === "string" ? req.query.status : "";
 
-  const filters = [];
+  const filters: ReturnType<typeof eq>[] = [];
   if (status === "online") filters.push(eq(readers.status, "online"));
   if (status === "busy") filters.push(eq(readers.status, "busy"));
 

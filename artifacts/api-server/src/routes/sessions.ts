@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Response } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, sessions, readers, users, reviews, transactions, sessionMessages } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -35,7 +35,7 @@ async function loadParticipants(s: typeof sessions.$inferSelect) {
   return { reader, client };
 }
 
-router.post("/sessions", requireAuth(["client", "admin"]), async (req, res: Response) => {
+router.post("/sessions", requireAuth(["client", "admin"]), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
   const parsed = requestSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid body" });
@@ -68,44 +68,44 @@ router.post("/sessions", requireAuth(["client", "admin"]), async (req, res: Resp
     })
     .returning();
 
-  res.status(201).json({ id: created.id, channelName: created.channelName, status: created.status });
+  return res.status(201).json({ id: created.id, channelName: created.channelName, status: created.status });
 });
 
-router.get("/sessions/:sessionId", requireAuth(), async (req, res: Response) => {
+router.get("/sessions/:sessionId", requireAuth(), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const row = await loadSession(req.params.sessionId);
+  const row = await loadSession(req.params["sessionId"] as string);
   if (!row) return res.status(404).json({ error: "Session not found" });
   if (row.s.readerUserId !== u.id && row.s.clientUserId !== u.id && u.role !== "admin") {
     return res.status(403).json({ error: "Forbidden" });
   }
   const { reader, client } = await loadParticipants(row.s);
-  res.json(serializeSession(row.s, reader.displayName, reader.avatarUrl, client.displayName, client.avatarUrl));
+  return res.json(serializeSession(row.s, reader.displayName, reader.avatarUrl, client.displayName, client.avatarUrl));
 });
 
-router.post("/sessions/:sessionId/accept", requireAuth(["reader", "admin"]), async (req, res: Response) => {
+router.post("/sessions/:sessionId/accept", requireAuth(["reader", "admin"]), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && u.role !== "admin") return res.status(403).json({ error: "Forbidden" });
   if (s.status !== "pending") return res.status(409).json({ error: `Session is ${s.status}` });
 
   await db.update(sessions).set({ status: "accepted" }).where(eq(sessions.id, s.id));
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
-router.post("/sessions/:sessionId/decline", requireAuth(["reader", "admin"]), async (req, res: Response) => {
+router.post("/sessions/:sessionId/decline", requireAuth(["reader", "admin"]), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && u.role !== "admin") return res.status(403).json({ error: "Forbidden" });
   if (s.status !== "pending") return res.status(409).json({ error: `Session is ${s.status}` });
   await db.update(sessions).set({ status: "declined" }).where(eq(sessions.id, s.id));
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
-router.post("/sessions/:sessionId/start", requireAuth(), async (req, res: Response) => {
+router.post("/sessions/:sessionId/start", requireAuth(), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && s.clientUserId !== u.id && u.role !== "admin")
     return res.status(403).json({ error: "Forbidden" });
@@ -123,13 +123,13 @@ router.post("/sessions/:sessionId/start", requireAuth(), async (req, res: Respon
       clientBalanceAtStartCents: client?.balanceCents ?? 0,
     })
     .where(eq(sessions.id, s.id));
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 // Per-minute billing tick — atomic. Either party (or a server cron) can call.
-router.post("/sessions/:sessionId/tick", requireAuth(), async (req, res: Response) => {
+router.post("/sessions/:sessionId/tick", requireAuth(), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && s.clientUserId !== u.id && u.role !== "admin")
     return res.status(403).json({ error: "Forbidden" });
@@ -191,9 +191,9 @@ router.post("/sessions/:sessionId/tick", requireAuth(), async (req, res: Respons
   res.json(result);
 });
 
-router.post("/sessions/:sessionId/end", requireAuth(), async (req, res: Response) => {
+router.post("/sessions/:sessionId/end", requireAuth(), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && s.clientUserId !== u.id && u.role !== "admin")
     return res.status(403).json({ error: "Forbidden" });
@@ -203,12 +203,12 @@ router.post("/sessions/:sessionId/end", requireAuth(), async (req, res: Response
     .update(sessions)
     .set({ status: "completed", endedAt: new Date() })
     .where(eq(sessions.id, s.id));
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
-router.get("/sessions/:sessionId/messages", requireAuth(), async (req, res: Response) => {
+router.get("/sessions/:sessionId/messages", requireAuth(), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && s.clientUserId !== u.id && u.role !== "admin")
     return res.status(403).json({ error: "Forbidden" });
@@ -217,7 +217,7 @@ router.get("/sessions/:sessionId/messages", requireAuth(), async (req, res: Resp
     .from(sessionMessages)
     .where(eq(sessionMessages.sessionId, s.id))
     .orderBy(sessionMessages.createdAt);
-  res.json(
+  return res.json(
     rows.map((m) => ({
       id: m.id,
       sessionId: m.sessionId,
@@ -229,26 +229,26 @@ router.get("/sessions/:sessionId/messages", requireAuth(), async (req, res: Resp
 });
 
 const postMessageSchema = z.object({ body: z.string().min(1).max(4000) });
-router.post("/sessions/:sessionId/messages", requireAuth(), async (req, res: Response) => {
+router.post("/sessions/:sessionId/messages", requireAuth(), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
   const parsed = postMessageSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid body" });
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.readerUserId !== u.id && s.clientUserId !== u.id) return res.status(403).json({ error: "Forbidden" });
   const [m] = await db
     .insert(sessionMessages)
     .values({ sessionId: s.id, senderId: u.id, body: parsed.data.body })
     .returning();
-  res.status(201).json({ id: m.id, body: m.body, senderId: m.senderId, createdAt: m.createdAt.toISOString() });
+  return res.status(201).json({ id: m.id, body: m.body, senderId: m.senderId, createdAt: m.createdAt.toISOString() });
 });
 
 const reviewSchema = z.object({ rating: z.number().int().min(1).max(5), body: z.string().max(2000).optional() });
-router.post("/sessions/:sessionId/review", requireAuth(["client", "admin"]), async (req, res: Response) => {
+router.post("/sessions/:sessionId/review", requireAuth(["client", "admin"]), async (req: Request, res: Response) => {
   const u = (req as AuthenticatedRequest).user;
   const parsed = reviewSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid body" });
-  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params.sessionId)).limit(1);
+  const [s] = await db.select().from(sessions).where(eq(sessions.id, req.params["sessionId"] as string)).limit(1);
   if (!s) return res.status(404).json({ error: "Session not found" });
   if (s.clientUserId !== u.id) return res.status(403).json({ error: "Forbidden" });
 
@@ -279,7 +279,7 @@ router.post("/sessions/:sessionId/review", requireAuth(["client", "admin"]), asy
       .set({ rating: Math.round((stat.avg ?? 0) * 100), reviewCount: stat.count ?? 0 })
       .where(eq(readers.id, s.readerId));
   });
-  res.status(201).json({ ok: true });
+  return res.status(201).json({ ok: true });
 });
 
 export default router;
