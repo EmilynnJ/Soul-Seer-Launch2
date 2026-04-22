@@ -3,10 +3,33 @@ import { RequireRole } from "@/components/RequireRole";
 import { useGetMyEarnings, useGetMyReaderAnalytics } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCents, formatDuration } from "@/lib/format";
-import { Loader2, DollarSign, Clock, Users, Star, BarChart3 } from "lucide-react";
+import { Loader2, Clock, Users, Star, BarChart3 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip } from "recharts";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
+
+function useReaderHeartbeat() {
+  const { getAccessTokenSilently } = useAuth0();
+  useEffect(() => {
+    let cancelled = false;
+    const beat = async () => {
+      try {
+        const token = await getAccessTokenSilently();
+        await fetch(`${API_BASE}/readers/me/heartbeat`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch { /* silent */ }
+    };
+    beat();
+    const iv = setInterval(beat, 60_000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [getAccessTokenSilently]);
+}
 
 export default function ReaderDashboardPage() {
   return (
@@ -17,6 +40,7 @@ export default function ReaderDashboardPage() {
 }
 
 function ReaderDashboardContent() {
+  useReaderHeartbeat();
   const { data: earnings, isLoading: earnLoading } = useGetMyEarnings();
   const { data: analytics, isLoading: anaLoading } = useGetMyReaderAnalytics();
 

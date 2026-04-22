@@ -28,6 +28,14 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
+  define: {
+    "import.meta.env.VITE_AUTH0_DOMAIN": JSON.stringify(process.env.AUTH0_APP_ID || ""),
+    "import.meta.env.VITE_AUTH0_CLIENT_ID": JSON.stringify(process.env.AUTH0_CLIENT_ID || ""),
+    "import.meta.env.VITE_AUTH0_AUDIENCE": JSON.stringify(process.env.AUTH0_IDENTIFIER || ""),
+    "import.meta.env.VITE_AGORA_APP_ID": JSON.stringify(process.env.AGORA_APP_ID || ""),
+    "import.meta.env.VITE_CLOUDINARY_CLOUD_NAME": JSON.stringify(process.env.CLOUDINARY_CLOUD_NAME || ""),
+    "import.meta.env.VITE_CLOUDINARY_API_KEY": JSON.stringify(process.env.CLOUDINARY_API_KEY || ""),
+  },
   plugins: [
     react(),
     tailwindcss(),

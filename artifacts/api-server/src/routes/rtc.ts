@@ -20,9 +20,9 @@ router.post("/rtc/agora-token", requireAuth(), async (req, res: Response) => {
     return res.status(403).json({ error: "Forbidden — not a session participant" });
 
   const appId = process.env.AGORA_APP_ID;
-  const appCert = process.env.AGORA_APP_CERTIFICATE;
+  const appCert = process.env.AGORA_SECURITY_CERTIFICATE || process.env.AGORA_APP_CERTIFICATE;
   if (!appId || !appCert) {
-    return res.status(503).json({ error: "Agora not configured. Set AGORA_APP_ID and AGORA_APP_CERTIFICATE." });
+    return res.status(503).json({ error: "Agora not configured. Set AGORA_APP_ID and AGORA_SECURITY_CERTIFICATE." });
   }
 
   const expiresInSeconds = 3600;

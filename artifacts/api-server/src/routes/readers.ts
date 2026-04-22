@@ -3,6 +3,7 @@ import { db, readers, users, reviews, sessions } from "@workspace/db";
 import { eq, desc, and, sql, inArray, like, or } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { serializeReader, serializeReaderDetail, getReaderRecentReviews } from "../lib/serializers";
+import { setReaderHeartbeat, clearReaderHeartbeat } from "../lib/redisClient";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -185,6 +186,26 @@ router.post("/me/favorites", requireAuth(), async (req, res: Response) => {
 
 router.delete("/me/favorites/:readerId", requireAuth(), async (_req, res: Response) => {
   res.status(204).end();
+});
+
+router.post("/readers/me/heartbeat", requireAuth(["reader", "admin"]), async (req, res: Response) => {
+  const u = (req as AuthenticatedRequest).user;
+  const [reader] = await db.select().from(readers).where(eq(readers.userId, u.id)).limit(1);
+  if (!reader) return res.status(404).json({ error: "Reader profile not found" });
+  await setReaderHeartbeat(reader.id);
+  if (reader.status === "offline") {
+    await db.update(readers).set({ status: "online" }).where(eq(readers.id, reader.id));
+  }
+  res.json({ ok: true, readerId: reader.id });
+});
+
+router.post("/readers/me/go-offline", requireAuth(["reader", "admin"]), async (req, res: Response) => {
+  const u = (req as AuthenticatedRequest).user;
+  const [reader] = await db.select().from(readers).where(eq(readers.userId, u.id)).limit(1);
+  if (!reader) return res.status(404).json({ error: "Reader profile not found" });
+  await clearReaderHeartbeat(reader.id);
+  await db.update(readers).set({ status: "offline" }).where(eq(readers.id, reader.id));
+  res.json({ ok: true });
 });
 
 export default router;

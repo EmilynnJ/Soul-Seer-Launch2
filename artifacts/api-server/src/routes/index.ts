@@ -10,6 +10,7 @@ import messagesRouter from "./messages";
 import forumRouter from "./forum";
 import communityRouter from "./community";
 import adminRouter from "./admin";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(messagesRouter);
 router.use(forumRouter);
 router.use(communityRouter);
 router.use(adminRouter);
+router.use(uploadRouter);
 
 export default router;
