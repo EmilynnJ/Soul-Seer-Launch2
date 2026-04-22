@@ -76,7 +76,7 @@ function SessionRoomContent() {
   }, [messages]);
 
   // Billing tick
-  const tickSession = useTickSession(sessionId as string, {
+  const tickSession = useTickSession({
     mutation: {
       onSuccess: (tick) => {
         if (tick.lowBalanceWarning) {
@@ -93,7 +93,7 @@ function SessionRoomContent() {
   useEffect(() => {
     if (session?.status !== 'in_progress') return;
     const interval = setInterval(() => {
-      tickSession.mutate({});
+      tickSession.mutate({ sessionId: sessionId as string });
     }, 15000); // tick every 15s
     return () => clearInterval(interval);
   }, [session?.status, sessionId]);
@@ -105,13 +105,13 @@ function SessionRoomContent() {
   
   useEffect(() => {
     if (session?.status === 'completed') {
-      // Small timeout so user sees it ended first
       const t = setTimeout(() => setIsReviewOpen(true), 1500);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [session?.status]);
 
-  const submitReview = useReviewSession(sessionId as string, {
+  const submitReview = useReviewSession({
     mutation: {
       onSuccess: () => {
         toast({ title: "Review submitted" });
@@ -146,7 +146,7 @@ function SessionRoomContent() {
               <div className="text-xs text-secondary font-sans">{formatCents(session.billedCents)}</div>
             </div>
             {session.status === 'in_progress' && (
-              <Button variant="destructive" onClick={() => endSess.mutate({})} disabled={endSess.isPending} size="sm">
+              <Button variant="destructive" onClick={() => endSess.mutate({ sessionId: sessionId as string })} disabled={endSess.isPending} size="sm">
                 <PhoneOff className="w-4 h-4 mr-2" /> End
               </Button>
             )}
@@ -241,7 +241,7 @@ function SessionRoomContent() {
               />
               <Button 
                 className="w-full font-sans" 
-                onClick={() => submitReview.mutate({ data: { rating, body: reviewBody }})}
+                onClick={() => submitReview.mutate({ sessionId: sessionId as string, data: { rating, body: reviewBody }})}
                 disabled={submitReview.isPending}
               >
                 {submitReview.isPending ? <Loader2 className="animate-spin mr-2 w-4 h-4" /> : null} Submit Review
